@@ -106,4 +106,4 @@ keep your tuned `vendor_categories.yaml` out of version control (it is in
 
 ## License
 
-Add a LICENSE file before publishing.
+MIT. See the LICENSE file.
