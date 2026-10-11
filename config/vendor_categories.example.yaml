@@ -1,0 +1,97 @@
+# Example rule set. Copy to config/vendor_categories.yaml and tune it.
+# The tuned file is git-ignored on purpose: publishing exact trigger keywords
+# and thresholds lets anyone route around them with vaguer vendor names.
+#
+# Each category:
+#   keywords:                 whole-word, case-insensitive match (plural allowed)
+#                             against payee name and description
+#   weight:                   base severity of one hit (0-1)
+#   per_transaction_flag_usd: minimum single-transaction amount to flag
+#   escalation:               repeated hits compound the score
+
+categories:
+  tobacco_lounge:
+    label: "Tobacco / smoke shops"
+    keywords: ["cigar", "tobacco"]
+    weight: 0.6
+    per_transaction_flag_usd: 300
+    escalation: true
+
+  luxury_travel:
+    label: "Luxury travel / resorts"
+    keywords: ["resort", "private jet"]
+    weight: 0.7
+    per_transaction_flag_usd: 1000
+    escalation: true
+
+  personal_retail:
+    label: "Personal retail / luxury goods"
+    keywords: ["jewelry", "boutique"]
+    weight: 0.6
+    per_transaction_flag_usd: 500
+    escalation: true
+
+  entertainment_venues:
+    label: "Entertainment venues (theme parks, cinemas)"
+    keywords: ["theme park", "cinema"]
+    weight: 0.5
+    per_transaction_flag_usd: 200
+    escalation: true
+
+  alcohol_nightlife:
+    label: "Bars / nightclubs"
+    keywords: ["nightclub", "wine bar"]
+    weight: 0.4
+    per_transaction_flag_usd: 500
+    escalation: true
+
+  vague_high_dollar:
+    label: "Vague description with a high amount"
+    keywords: ["reimbursement", "miscellaneous"]
+    weight: 0.5
+    per_transaction_flag_usd: 2000
+    escalation: false
+
+  credit_card_payment:
+    label: "Large payment to a card issuer (purchases not itemized)"
+    keywords: ["visa", "american express"]
+    weight: 0.5
+    per_transaction_flag_usd: 5000
+    escalation: false
+
+  shared_surname_payee:
+    # Matched in code, not by keyword: payee shares the candidate's surname.
+    label: "Payee shares the candidate's surname"
+    keywords: []
+    weight: 0.7
+    per_transaction_flag_usd: 200
+    escalation: true
+
+  shared_surname_committee:
+    # Matched in code: same surname AND the payee looks like a campaign committee.
+    label: "Payee is a committee whose name includes the candidate's surname"
+    keywords: []
+    weight: 0.8
+    escalation: false
+
+# Softer categories used only for peer comparison (spending share vs peers).
+peer_comparison_categories:
+  catering_events:
+    label: "Catering / food & beverage / event venues"
+    keywords: ["catering", "restaurant"]
+
+  lodging:
+    label: "Hotels / lodging"
+    keywords: ["hotel", "resort"]
+
+  travel:
+    label: "Airfare / travel booking"
+    keywords: ["airlines", "car rental"]
+
+  consulting_fees:
+    label: "Consulting / strategy fees"
+    keywords: ["consulting", "advisory"]
+
+  shared_surname_spend:
+    label: "Payments to payees sharing the candidate's surname"
+    keywords: []

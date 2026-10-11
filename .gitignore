@@ -1,0 +1,23 @@
+# Downloaded FEC data and screening output (can name real people; do not publish)
+cache/
+output/
+
+# Private rule set (the public repo ships the .example.yaml instead)
+config/vendor_categories.yaml
+config/*.bak*
+*.bak
+*.bak2
+
+# Secrets
+.env
+*.key
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# macOS
+.DS_Store
