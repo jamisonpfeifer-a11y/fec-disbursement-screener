@@ -31,6 +31,14 @@ PEER_SCORE_PER_Z = 0.1
 PEER_SCORE_CAP = 5.0
 
 
+# A payee flagged for this many committees or more is probably an institution
+# (a conference venue, a card issuer, a large vendor), not a one-off.
+COMMON_PAYEE_MIN_COMMITTEES = 4
+COMMON_PAYEE_FACTOR = 0.5
+# Flags tied to the candidate's own name are specific to that candidate.
+_NAME_BASED = ("shared_surname_payee", "shared_surname_committee")
+
+
 @dataclass
 class CandidateRiskSummary:
     candidate_id: str
@@ -41,6 +49,36 @@ class CandidateRiskSummary:
     composite_score: float
     vendor_flags: list[dict]
     peer_anomalies: list[dict]
+
+
+def _payee_key(flag) -> str:
+    return " ".join(str(flag.transaction.get("recipient_name") or "").upper().split())
+
+
+def damp_common_payees(
+    reports: list[CommitteeFlagReport],
+    min_committees: int = COMMON_PAYEE_MIN_COMMITTEES,
+    factor: float = COMMON_PAYEE_FACTOR,
+) -> dict[str, int]:
+    """Halve the weight of flags on payees flagged across many committees.
+
+    Returns {payee: committee count} for the payees that were damped.
+    Name-based flags are left alone. Safe to call once per scoring run.
+    """
+    committees: dict[str, set[str]] = {}
+    for rep in reports:
+        for f in rep.flags:
+            if f.category in _NAME_BASED:
+                continue
+            key = _payee_key(f)
+            if key:
+                committees.setdefault(key, set()).add(rep.committee_id)
+    common = {k: len(v) for k, v in committees.items() if len(v) >= min_committees}
+    for rep in reports:
+        for f in rep.flags:
+            if f.category not in _NAME_BASED and _payee_key(f) in common:
+                f.score_contribution *= factor
+    return common
 
 
 def effective_peer_z(r: PeerAnomalyResult) -> float:

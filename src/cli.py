@@ -19,9 +19,9 @@ import os
 import sys
 from datetime import datetime
 
-from .fec_client import FECClient
+from .fec_client import FECClient, FECRateLimitError
 from .peer_comparison import CandidateSpendProfile, compute_peer_anomalies
-from .risk_scoring import rank_candidates, score_candidate
+from .risk_scoring import damp_common_payees, rank_candidates, score_candidate
 from .vendor_rules import flag_disbursements, load_categories
 
 _CONFIG_DIR = os.path.join(os.path.dirname(__file__), "..", "config")
@@ -127,6 +127,11 @@ def cmd_screen(args):
             profile, vendor_report = _build_profile_and_flags(
                 client, config, cand, args.cycle, refresh=refresh
             )
+        except FECRateLimitError as e:
+            print(f"\n{e}", file=sys.stderr)
+            print(f"Stopped after {i} of {len(candidates)} candidates. Downloaded data is cached; "
+                  "re-run the same command later (the quota resets hourly) to continue.", file=sys.stderr)
+            return
         except Exception as e:
             print(f"  SKIPPED (error: {e})", file=sys.stderr)
             skipped.append(cand.get("name"))
@@ -142,6 +147,10 @@ def cmd_screen(args):
     peer_by_candidate: dict[str, list] = {}
     for r in peer_results:
         peer_by_candidate.setdefault(r.candidate_id, []).append(r)
+
+    common = damp_common_payees(list(vendor_reports.values()))
+    if common:
+        print(f"{len(common)} payees flagged across many committees were down-weighted.", file=sys.stderr)
 
     summaries = []
     for profile in profiles:

@@ -27,10 +27,10 @@ class TransactionFlag:
 _CATEGORY_CAPS = {
     "shared_surname_payee": 4.0,
     "shared_surname_committee": 2.0,
-    "vague_high_dollar": 3.0,
+    "vague_high_dollar": 1.5,
     "credit_card_payment": 1.0,
 }
-_DEFAULT_CAP = 10.0
+_DEFAULT_CAP = 4.0
 _TOTAL_CAP = 10.0
 
 # Name-based categories scale with dollars, reaching full weight at this total.
@@ -107,6 +107,11 @@ _COMMITTEE_RE = re.compile(
     r"|\bfor\b.*\b20\d\d\b|\bcommittee\b|\bcampaign\b|\bfriends\s+of\b|\bcitizens\s+for\b",
     re.I)
 _CHAIN_RE = re.compile(r"hotels?\s*(?:&|and)\s*resorts?", re.I)
+# "Sherman Oaks", "Culver Heights": a surname followed by a place word is a
+# place name, not a person.
+_PLACE_RE = re.compile(
+    r"\b[a-z]+\s+(?:oaks?|hills?|heights|beach|valley|springs?|canyon|grove|village|creek|ridge)\b",
+    re.I)
 
 
 def _is_committee_payee(recipient: str) -> bool:
@@ -115,7 +120,7 @@ def _is_committee_payee(recipient: str) -> bool:
 
 def _surname_hit(surnames: set[str], recipient: str) -> bool:
     """Whole-word surname match: "tran" must not match "transport"."""
-    r = (recipient or "").lower()
+    r = _PLACE_RE.sub(" ", (recipient or "").lower())
     return any(re.search(r"(?<![a-z])" + re.escape(sn) + r"(?![a-z])", r) for sn in surnames)
 
 
