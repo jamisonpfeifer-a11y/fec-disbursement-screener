@@ -1,4 +1,4 @@
-# fec_fraud_detector
+# fec-disbursement-screener
 
 A command-line screening tool that reads public campaign disbursement data from
 the [openFEC API](https://api.open.fec.gov/developers/) and produces a **ranked
@@ -23,6 +23,9 @@ payments) and two payee-name checks:
 
 Repeated hits in a category compound, with per-category caps so no single weak
 signal can saturate a score. Shared-surname scores also scale with dollars.
+Payees flagged across four or more committees (a conference venue, a card
+issuer, a large vendor) are probably institutions, so their flags count at half
+weight.
 
 **Module 2: peer comparison.** Each candidate's spending shares by category
 (catering, lodging, travel, consulting, shared-surname payees) are compared with peers
@@ -35,12 +38,13 @@ tiny peer variance cannot produce absurd scores.
 False-positive controls that came out of testing on real data: whole-word
 keyword matching, self-payment detection (personal-fund repayments, the
 candidate's own committee, nicknames), contribution refunds, card issuers,
-duplicate amendment records, and hotel-chain names.
+duplicate amendment records, hotel-chain names, and place names such as
+"Sherman Oaks" that happen to contain a surname.
 
 ## Setup
 
 ```bash
-git clone <this repo> && cd fec_fraud_detector
+git clone <this repo> && cd fec-disbursement-screener
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
@@ -68,16 +72,25 @@ Output: the top 10 are printed, and the full ranked report is written to
 `output/screening_report_<timestamp>.json` with the flagged transactions and
 peer anomalies behind each score.
 
-## Caching and rate limits
+## Data coverage and rate limits
 
-Downloads are cached in `./cache`. Re-running a command only fetches what is
-missing, and changing rules or scoring re-scores in seconds with no API calls.
-`--refresh` forces a re-download.
+The openFEC disbursements endpoint uses cursor (keyset) pagination: each
+response carries the position of its last record, which must be sent with the
+next request. It ignores page numbers. The client follows the cursor until the
+committee's records are exhausted, so scores are based on every reported
+disbursement in the cycle, not a sample.
+`scripts/check_pagination.py` compares cached record counts with the API's
+reported totals for each committee.
 
-The default api.data.gov key allows roughly 1,000 requests per hour, so a large
-screen (hundreds of candidates) will hit the limit. Candidates that fail are
-listed at the end; re-run the same command to pick them up. FEC will raise the
-limit on request (APIinfo@fec.gov).
+A full state screen is a lot of data (a large House committee can have around
+10,000 transactions, or about 100 requests). The default api.data.gov key allows roughly 1,000
+requests per hour, so a large screen will usually stop partway through. When it
+does, it prints where it stopped and writes no report; downloaded data is
+cached, so re-run the same command after the quota resets and it continues
+where it left off. FEC will raise the limit on request (APIinfo@fec.gov).
+
+Downloads are cached in `./cache`. Changing rules or scoring re-scores in
+seconds with no API calls. `--refresh` forces a re-download.
 
 ## Tests
 
@@ -103,7 +116,12 @@ keep your tuned `vendor_categories.yaml` out of version control (it is in
 - Peer groups are coarse; incumbents and challengers may spend very differently.
 - Card-issuer payments hide the underlying purchases.
 - It reads federal filings only.
+- Scores reflect volume as well as behavior: committees with many transactions
+  have more chances to trip a rule. Large, long-serving committees tend to rank
+  higher for routine spending (conference venues, consultants, staff
+  reimbursements). Treat the ranking as a reading order, not a measure of
+  wrongdoing.
 
 ## License
 
-MIT. See the LICENSE file.
+MIT. See [LICENSE](LICENSE).
