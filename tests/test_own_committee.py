@@ -35,3 +35,8 @@ assert not me("SYKES, EMILIA", "ANNA SYKES FOR STRONG SCHOOLS")
 assert not me("WILSON, TAMARA", "WILSON, ANTHONY")
 assert not me("JORDAN, JAMES D.", "TEAM SPIRIT LLC")
 print("team and nickname tests passed")
+
+# joint fundraising committee led by the candidate's surname is their own
+assert me("CASEY, ROBERT P. JR.", "CASEY FETTERMAN VICTORY FUND")
+assert not me("RYAN, PATRICK", "JULIA RYAN VICTORY FUND")
+print("joint committee tests passed")

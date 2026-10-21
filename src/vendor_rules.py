@@ -233,6 +233,10 @@ def _is_self_payment(candidate_name: str, recipient_name: str) -> bool:
         return True
     if _NAMED_COMMITTEE_RE.search(recip) and not _other_name_tokens(surname, recip):
         return True
+    # Joint fundraising committees list their participants, with the
+    # candidate's own surname first ("CASEY FETTERMAN VICTORY FUND").
+    if re.search(r"\bvictory\s+(?:fund|committee)\b", recip) and re.match(r"\W*" + re.escape(surname) + r"\b", recip):
+        return True
     # "<SURNAME> FOR STRONG SCHOOLS": a committee that starts with the surname
     # and no given name is the candidate's own; "BETTY LIEU FOR ..." is not.
     if re.match(r"\W*" + re.escape(surname) + r"\s+for\b", recip):

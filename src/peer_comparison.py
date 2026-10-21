@@ -17,7 +17,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-MIN_PEER_GROUP_SIZE = 5
+MIN_PEER_GROUP_SIZE = 10
 MAD_CONSTANT = 1.4826  # makes MAD comparable to a standard deviation if data are normal
 # Stand-in z-score when peers show no spread at all and the candidate is above them.
 ZERO_SPREAD_Z = 10.0
