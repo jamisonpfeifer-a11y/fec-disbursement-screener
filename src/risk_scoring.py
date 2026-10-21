@@ -33,7 +33,7 @@ PEER_SCORE_CAP = 5.0
 
 # A payee flagged for this many committees or more is probably an institution
 # (a conference venue, a card issuer, a large vendor), not a one-off.
-COMMON_PAYEE_MIN_COMMITTEES = 4
+COMMON_PAYEE_MIN_COMMITTEES = 3
 COMMON_PAYEE_FACTOR = 0.5
 # Flags tied to the candidate's own name are specific to that candidate.
 _NAME_BASED = ("shared_surname_payee", "shared_surname_committee")

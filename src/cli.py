@@ -121,6 +121,7 @@ def cmd_screen(args):
     profiles = []
     vendor_reports = {}
     skipped = []
+    seen_committees = set()
     for i, cand in enumerate(candidates):
         print(f"[{i+1}/{len(candidates)}] {cand.get('name')}", file=sys.stderr)
         try:
@@ -138,6 +139,11 @@ def cmd_screen(args):
             continue
         if profile is None:
             continue
+        # The same person can be listed under several candidate IDs; count
+        # each committee once so duplicates do not skew peer comparisons.
+        if profile.committee_id in seen_committees:
+            continue
+        seen_committees.add(profile.committee_id)
         profiles.append(profile)
         vendor_reports[profile.candidate_id] = vendor_report
 

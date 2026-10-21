@@ -104,7 +104,8 @@ def _normalize_name(name: str) -> str:
 _COMMITTEE_RE = re.compile(
     r"\bfor\s+(?:congress|assembly|senate|school\s+board|city\s+council|council|mayor|"
     r"supervisor|governor|judge|sheriff|county|state|district)\b"
-    r"|\bfor\b.*\b20\d\d\b|\bcommittee\b|\bcampaign\b|\bfriends\s+of\b|\bcitizens\s+for\b",
+    r"|\bfor\b.*\b20\d\d\b|\bcommittee\b|\bcampaign\b|\bfriends\s+of\b|\bcitizens\s+for\b"
+    r"|\bvictory\s+fund\b|\b(?:19|20)\d\d\s*$",
     re.I)
 _CHAIN_RE = re.compile(r"hotels?\s*(?:&|and)\s*resorts?", re.I)
 # "Sherman Oaks", "Culver Heights": a surname followed by a place word is a
@@ -150,6 +151,14 @@ _NICKNAMES = {
     "steve": {"steven", "stephen"}, "sue": {"susan"}, "susie": {"susan"},
     "ted": {"edward", "theodore"}, "tom": {"thomas"}, "tommy": {"thomas"},
     "tony": {"anthony"}, "will": {"william"},
+    "tamie": {"tamara"}, "tami": {"tamara", "tamela"}, "tammy": {"tamara", "tamela"},
+    "abby": {"abigail"}, "becky": {"rebecca"}, "betsy": {"elizabeth"},
+    "cindy": {"cynthia", "lucinda"}, "gabe": {"gabriel"}, "jessie": {"jessica"},
+    "jess": {"jessica", "jesse"}, "lizzie": {"elizabeth"}, "maddie": {"madeline", "madison"},
+    "mitch": {"mitchell"}, "nate": {"nathan", "nathaniel"}, "pat": {"patrick", "patricia"},
+    "patty": {"patricia"}, "ray": {"raymond"}, "sandy": {"sandra"}, "tim": {"timothy"},
+    "vicky": {"victoria"}, "zach": {"zachary"}, "jackie": {"jacqueline"},
+    "chris": {"christopher", "christine", "christina"}, "terry": {"terrence", "teresa"},
 }
 
 
@@ -181,8 +190,12 @@ _COMMITTEE_WORDS = {
     "governor", "president", "assembly", "committee", "friends", "of", "the", "re",
     "elect", "inc", "pac", "campaign", "citizens", "dr", "mr", "mrs", "ms", "hon",
     "jr", "sr", "ii", "iii", "iv", "md", "district", "representative", "rep",
-    "to", "congressman", "congresswoman", "senator",
+    "to", "congressman", "congresswoman", "senator", "victory", "fund", "team",
 }
+# "<NAME> 2020", "<NAME> VICTORY FUND": a committee named for the candidate
+# (a past campaign, or a joint fundraising committee).
+_NAMED_COMMITTEE_RE = re.compile(
+    r"\bvictory\s+(?:fund|committee)\b|\b(?:19|20)\d\d\s*$|^\W*team\b", re.I)
 
 
 def _other_name_tokens(surname: str, recip: str) -> list[str]:
@@ -218,8 +231,18 @@ def _is_self_payment(candidate_name: str, recipient_name: str) -> bool:
             return True
     elif re.search(_OFFICE_COMPACT, recip_c):
         return True
+    if _NAMED_COMMITTEE_RE.search(recip) and not _other_name_tokens(surname, recip):
+        return True
+    # "<SURNAME> FOR STRONG SCHOOLS": a committee that starts with the surname
+    # and no given name is the candidate's own; "BETTY LIEU FOR ..." is not.
+    if re.match(r"\W*" + re.escape(surname) + r"\s+for\b", recip):
+        return True
     # Surname + first name (or nickname) = the candidate themselves
     if surname in recip and _first_name_matches(first, recip):
+        return True
+    # Initials filed as "J D" but paid as "JD"
+    initials = "".join(given)
+    if surname in recip and len(initials) >= 2 and initials in re.findall(r"[a-z']+", recip):
         return True
     return False
 

@@ -14,3 +14,24 @@ assert not me("LOWENTHAL, ALAN", "JOSH LOWENTHAL FOR ASSEMBLY 2024")
 assert not me("LOWENTHAL, ALAN", "JOSH LOWENTHAL FOR ASSEMNBLY 2024")
 assert not me("LIEU, TED", "BETTY LIEU FOR CONGRESS")
 print("own-committee tests passed")
+
+# past campaigns and joint victory funds named for the candidate are still self
+assert me("DE BLASIO, BILL", "DE BLASIO 2020")
+assert me("LAWLER, MICHAEL VINCENT", "LAWLER VICTORY FUND")
+assert me("MALLIOTAKIS, NICOLE", "MALLIOTAKIS VICTORY COMMITTEE")
+# someone else's named committee is not
+assert not me("RYAN, PATRICK", "JULIA RYAN 2022")
+assert not me("RYAN, PATRICK", "JULIA RYAN VICTORY FUND")
+from src.vendor_rules import _is_committee_payee
+assert _is_committee_payee("DE BLASIO 2020") and _is_committee_payee("DESPOSITO VICTORY FUND")
+assert not _is_committee_payee("TARGETED VICTORY LLC")
+print("named committee tests passed")
+
+# nicknames, "TEAM <SURNAME>", "<SURNAME> FOR <cause>"
+assert me("WILSON, TAMARA", "WILSON, TAMIE")
+assert me("JORDAN, JAMES D.", "TEAM JORDAN")
+assert me("SYKES, EMILIA", "SYKES FOR STRONG SCHOOLS")
+assert not me("SYKES, EMILIA", "ANNA SYKES FOR STRONG SCHOOLS")
+assert not me("WILSON, TAMARA", "WILSON, ANTHONY")
+assert not me("JORDAN, JAMES D.", "TEAM SPIRIT LLC")
+print("team and nickname tests passed")

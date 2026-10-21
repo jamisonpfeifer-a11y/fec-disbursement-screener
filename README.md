@@ -23,7 +23,7 @@ payments) and two payee-name checks:
 
 Repeated hits in a category compound, with per-category caps so no single weak
 signal can saturate a score. Shared-surname scores also scale with dollars.
-Payees flagged across four or more committees (a conference venue, a card
+Payees flagged across three or more committees (a conference venue, a card
 issuer, a large vendor) are probably institutions, so their flags count at half
 weight.
 

@@ -12,7 +12,7 @@ def rep(cid, flags):
             reason="t", score_contribution=w))
     return r
 
-# a venue flagged for 4 committees is damped; a one-off venue is not
+# a venue flagged for 3 or more committees is damped; a one-off venue is not
 reps = [rep(f"C{i}", [("luxury_travel", "Lansdowne  Resort", 0.7)]) for i in range(4)]
 solo = rep("C9", [("luxury_travel", "Hidden Cove Resort", 0.7),
                   ("shared_surname_payee", "Lansdowne Resort", 1.0)])
