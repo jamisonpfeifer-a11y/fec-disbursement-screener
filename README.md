@@ -39,7 +39,8 @@ False-positive controls that came out of testing on real data: whole-word
 keyword matching, self-payment detection (personal-fund repayments, the
 candidate's own committee, nicknames), contribution refunds, card issuers,
 duplicate amendment records, hotel-chain names, and place names such as
-"Sherman Oaks" that happen to contain a surname.
+"Sherman Oaks" that happen to contain a surname, payments to PACs (not venues),
+returned payments, and a half-weight discount for very common surnames.
 
 ## Setup
 

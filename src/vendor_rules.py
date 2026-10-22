@@ -21,6 +21,7 @@ class TransactionFlag:
     transaction: dict
     reason: str
     score_contribution: float
+    cap_scale: float = 1.0  # shrinks the category cap (very common surnames)
 
 
 # Maximum vendor-score contribution per category (default: _DEFAULT_CAP).
@@ -52,7 +53,9 @@ class CommitteeFlagReport:
         can saturate the total."""
         points: dict[str, float] = {}
         dollars: dict[str, float] = {}
+        cap_scale: dict[str, float] = {}
         for f in self.flags:
+            cap_scale[f.category] = min(cap_scale.get(f.category, 1.0), f.cap_scale)
             points[f.category] = points.get(f.category, 0.0) + f.score_contribution
             try:
                 amount = abs(float(f.transaction.get("disbursement_amount") or 0))
@@ -62,7 +65,7 @@ class CommitteeFlagReport:
 
         total = 0.0
         for category, value in points.items():
-            value = min(value, _CATEGORY_CAPS.get(category, _DEFAULT_CAP))
+            value = min(value, _CATEGORY_CAPS.get(category, _DEFAULT_CAP) * cap_scale[category])
             if category in _NAME_BASED:
                 # Many tiny payments should rank below one large one.
                 factor = _MIN_DOLLAR_FACTOR + (1 - _MIN_DOLLAR_FACTOR) * dollars[category] / _FULL_WEIGHT_USD
@@ -95,6 +98,29 @@ def _extract_surname_candidates(name: str) -> set[str]:
         return set()
     surname = name.split(",")[0].strip().lower()
     return {surname} if len(surname) > 2 else set()
+
+
+# Very common US surnames (Census frequency). A shared surname is weaker
+# evidence when the name is this common, so those flags count at half weight.
+_COMMON_SURNAMES = set("""
+smith johnson williams brown jones garcia miller davis rodriguez martinez
+hernandez lopez gonzalez gonzales wilson anderson thomas taylor moore jackson martin lee
+perez thompson white harris sanchez clark ramirez lewis robinson walker young
+allen king wright scott torres nguyen hill flores green adams nelson baker hall
+rivera campbell mitchell carter roberts gomez phillips evans turner diaz parker
+cruz edwards collins reyes stewart morris morales murphy cook rogers gutierrez
+ortiz morgan cooper peterson bailey reed kelly howard ramos kim cox ward
+richardson watson brooks chavez wood james bennett gray mendoza ruiz hughes
+price alvarez castillo sanders patel myers long ross foster jimenez tran chen
+wang li wong chu liu pham yang kumar singh khan shah
+""".split())
+_COMMON_SURNAME_FACTOR = 0.5
+
+# Payees that are political committees or PACs: a contribution to one is not a
+# purchase at a venue, so the lifestyle categories skip them.
+_PAC_RE = re.compile(r"\bpac\b|political\s+action|-pac\b", re.I)
+_LIFESTYLE = ("tobacco_lounge", "alcohol_nightlife", "entertainment_venues",
+              "luxury_travel", "personal_retail")
 
 
 def _normalize_name(name: str) -> str:
@@ -198,12 +224,17 @@ _NAMED_COMMITTEE_RE = re.compile(
     r"\bvictory\s+(?:fund|committee)\b|\b(?:19|20)\d\d\s*$|^\W*team\b", re.I)
 
 
+def _is_committee_word_typo(token: str) -> bool:
+    """"PFRIENDS" and similar: a long committee word with a stray letter."""
+    return any(len(w) >= 6 and (token.endswith(w) or token.startswith(w)) for w in _COMMITTEE_WORDS)
+
+
 def _other_name_tokens(surname: str, recip: str) -> list[str]:
     """Alphabetic tokens in a committee-style payee other than the candidate's
     surname and generic committee words (i.e. someone else's given name)."""
     sn = set(re.findall(r"[a-z']+", surname.lower()))
     return [t for t in re.findall(r"[a-z']+", recip.lower())
-            if t not in sn and t not in _COMMITTEE_WORDS]
+            if t not in sn and t not in _COMMITTEE_WORDS and not _is_committee_word_typo(t)]
 
 
 def _is_self_payment(candidate_name: str, recipient_name: str) -> bool:
@@ -236,6 +267,11 @@ def _is_self_payment(candidate_name: str, recipient_name: str) -> bool:
     # Joint fundraising committees list their participants, with the
     # candidate's own surname first ("CASEY FETTERMAN VICTORY FUND").
     if re.search(r"\bvictory\s+(?:fund|committee)\b", recip) and re.match(r"\W*" + re.escape(surname) + r"\b", recip):
+        return True
+    # "FRIENDS OF <SURNAME>", "<SURNAME> COMMITTEE": named for the candidate
+    # alone, with no other person's name in it.
+    if re.search(r"friends\s*of|citizens\s+for|committee|campaign", recip) \
+            and not _other_name_tokens(surname, recip):
         return True
     # "<SURNAME> FOR STRONG SCHOOLS": a committee that starts with the surname
     # and no given name is the candidate's own; "BETTY LIEU FOR ..." is not.
@@ -323,21 +359,29 @@ def flag_disbursements(
         # Not a shared-surname signal: self-payments, donor refunds, and card issuers
         # whose names happen to contain the cardholder's surname.
         skip_surname = is_self or is_refund or is_card
+        is_pac = bool(_PAC_RE.search(recipient))
+        # Common surnames match unrelated people far more often.
+        common = bool(surnames) and all(sn in _COMMON_SURNAMES for sn in surnames)
+        name_scale = _COMMON_SURNAME_FACTOR if common else 1.0
 
         for cat_key, cat_def in categories.items():
+            if amount <= 0:
+                continue  # a returned or reversed payment is not a purchase
             if cat_key == "shared_surname_payee":
                 if skip_surname:
                     continue
                 if _is_shared_surname_payee(surnames, recipient):
                     _apply_flag(report, category_hit_counts, cat_key, cat_def, txn,
-                                reason=f"Recipient name overlaps candidate/staff surname: '{recipient}'")
+                                reason=f"Recipient name overlaps candidate/staff surname: '{recipient}'",
+                                scale=name_scale)
                 continue
             if cat_key == "shared_surname_committee":
                 if skip_surname:
                     continue
                 if surnames and _surname_hit(surnames, recipient) and _is_committee_payee(recipient):
                     _apply_flag(report, category_hit_counts, cat_key, cat_def, txn,
-                                reason=f"Payment to campaign committee sharing candidate/staff surname: '{recipient}'")
+                                reason=f"Payment to campaign committee sharing candidate/staff surname: '{recipient}'",
+                                scale=name_scale)
                 continue
 
             # Card payments match on the payee only; hotel-chain names
@@ -345,6 +389,8 @@ def flag_disbursements(
             text = recipient if cat_key == "credit_card_payment" else combined_text
             if cat_key == "luxury_travel":
                 text = _CHAIN_RE.sub(" ", text)
+            if cat_key in _LIFESTYLE and (is_pac or _is_committee_payee(recipient)):
+                continue
             if not _matches_keywords(text, cat_def.get("keywords", [])):
                 continue
             if cat_key == "vague_high_dollar" and is_self:
@@ -368,7 +414,7 @@ def flag_disbursements(
 
 
 def _apply_flag(report: CommitteeFlagReport, category_hit_counts: dict[str, int],
-                cat_key: str, cat_def: dict, txn: dict, reason: str) -> None:
+                cat_key: str, cat_def: dict, txn: dict, reason: str, scale: float = 1.0) -> None:
     category_hit_counts[cat_key] += 1
     base_weight = cat_def.get("weight", 0.3)
     if cat_def.get("escalation") and category_hit_counts[cat_key] > 1:
@@ -377,7 +423,7 @@ def _apply_flag(report: CommitteeFlagReport, category_hit_counts: dict[str, int]
         multiplier = 1 + 0.25 * (category_hit_counts[cat_key] - 1)
     else:
         multiplier = 1.0
-    contribution = base_weight * multiplier
+    contribution = base_weight * multiplier * scale
     report.flags.append(
         TransactionFlag(
             category=cat_key,
@@ -385,5 +431,6 @@ def _apply_flag(report: CommitteeFlagReport, category_hit_counts: dict[str, int]
             transaction=txn,
             reason=reason,
             score_contribution=contribution,
+            cap_scale=scale,
         )
     )
