@@ -73,6 +73,22 @@ Output: the top 10 are printed, and the full ranked report is written to
 `output/screening_report_<timestamp>.json` with the flagged transactions and
 peer anomalies behind each score.
 
+## Finding individual transactions
+
+The ranking is per candidate, but every flag is a specific transaction. To get
+them as a spreadsheet:
+
+```bash
+python3 scripts/export_flags.py                        # newest report -> CSV
+python3 scripts/export_flags.py --min-amount 5000      # only large payments
+python3 scripts/export_flags.py --category shared_surname_payee --candidate LIEU
+```
+
+One row per flagged transaction, sorted by amount: candidate, date, amount,
+payee, description, why it was flagged, a link to the scanned filing page, and
+an FEC.gov search link for the same committee and payee. Filing links need a
+report generated with this version (re-run `screen`; cached data is reused).
+
 ## Data coverage and rate limits
 
 The openFEC disbursements endpoint uses cursor (keyset) pagination: each

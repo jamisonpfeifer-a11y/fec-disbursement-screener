@@ -118,6 +118,10 @@ def score_candidate(
                 "amount": f.transaction.get("disbursement_amount"),
                 "recipient": f.transaction.get("recipient_name"),
                 "date": f.transaction.get("disbursement_date"),
+                "description": f.transaction.get("disbursement_description"),
+                "sub_id": f.transaction.get("sub_id"),
+                "image_number": f.transaction.get("image_number"),
+                "pdf_url": f.transaction.get("pdf_url"),
                 "score_contribution": round(f.score_contribution, 2),
             }
             for f in vendor_report.flags
