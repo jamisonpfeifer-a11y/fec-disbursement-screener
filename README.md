@@ -7,8 +7,7 @@ worklist for human review**.
 > **A score is a lead, not a finding.** Everything this tool flags has a
 > possible innocent explanation (legal fees to a firm with a common surname, an event held
 > at a resort, a card payment whose purchases were itemized elsewhere). Output
-> names real people and must be verified against the underlying filings before
-> anything is said or published about anyone.
+> names real people and must be verified against the underlying filings.
 
 ## What it does
 
