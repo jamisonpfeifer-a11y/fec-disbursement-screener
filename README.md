@@ -124,6 +124,14 @@ vaguer vendor names. The repository ships only `vendor_categories.example.yaml`;
 keep your tuned `vendor_categories.yaml` out of version control (it is in
 `.gitignore`).
 
+## Tested on
+
+2024 cycle: House races in California, New York, Ohio and Texas, and Senate
+races in Ohio and Pennsylvania. The rules were tuned by reading the top-ranked
+results in each and fixing false positives, so they reflect those states' naming
+patterns. There is no labeled ground truth, so treat the scores as a reading
+order, not a measure of accuracy.
+
 ## Limitations
 
 - Only what filers report: descriptions are free text, and payee names can be
